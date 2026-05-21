@@ -22,8 +22,8 @@
     :root {
       --word-length: 5;
       /* Dynamic sizing to strictly fit vertical screen height */
-      --cell-size: min(6vh, calc((90vw - 20px) / var(--word-length)));
-      --cell-gap: clamp(4px, 1vw, 8px);
+      --cell-size: min(6vh, calc((90vw - 30px) / var(--word-length)));
+      --cell-gap: clamp(2px, 0.8vw, 6px);
       
       /* Vibrant Slate Dark Theme */
       --bg-dark: #0a0e14;
@@ -53,7 +53,10 @@
       background: var(--bg-dark);
       background-image: var(--bg-gradient);
       color: var(--color-text-main);
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
       min-height: 100vh;
+      min-height: calc(var(--vh, 1vh) * 100);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -176,7 +179,7 @@
       justify-content: center;
       padding: 10px 0;
       width: 100%;
-      max-height: 52vh;
+      max-height: 46vh;
     }
 
     .grid {
@@ -283,10 +286,10 @@
     #keyboard-container {
       width: 100%;
       max-width: 650px;
-      padding: 5px 8px 15px 8px;
+      padding: 4px 6px 12px 6px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: clamp(3px, 1vh, 6px);
       z-index: 10;
     }
 
@@ -294,12 +297,12 @@
       display: flex;
       justify-content: center;
       width: 100%;
-      gap: clamp(3px, 1.2vw, 6px);
+      gap: clamp(2px, 1vw, 5px);
     }
 
     .key {
       flex: 1;
-      height: clamp(42px, 6.5vh, 52px);
+      height: clamp(34px, 5.5vh, 48px);
       max-width: 48px;
       background-color: rgba(255, 255, 255, 0.07);
       border: 1px solid rgba(255, 255, 255, 0.04);
@@ -364,13 +367,15 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 100;
-      padding: 20px;
+      padding: 10px;
       background: rgba(5, 8, 13, 0.85);
       animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
     }
 
     @keyframes fadeIn {
@@ -381,13 +386,14 @@
     .modal-content {
       width: 100%;
       max-width: 460px;
-      padding: 30px 24px;
+      padding: 24px 20px;
       text-align: center;
       position: relative;
       display: flex;
       flex-direction: column;
       gap: 20px;
       animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      margin: auto;
     }
 
     @keyframes slideUp {
@@ -765,16 +771,62 @@
     }
 
     /* MOBILE EXTRA OPTIMIZATION */
-    @media (max-height: 680px) {
+    @media (max-width: 480px) {
       header {
-        padding: 6px 15px;
+        padding: 8px 12px;
       }
-      .brand h1 { font-size: 1.25rem; }
+      .brand h1 {
+        font-size: 1.15rem;
+        letter-spacing: 0.1em;
+      }
+      .brand span {
+        font-size: 0.55rem;
+      }
+      .btn-header {
+        padding: 4px 10px;
+        font-size: 0.7rem;
+      }
+      main {
+        padding: 2px;
+      }
+      #board-container {
+        padding: 4px 0;
+        max-height: 42vh;
+      }
+      #keyboard-container {
+        padding: 2px 4px 10px 4px;
+        gap: 3px;
+      }
+      .key {
+        height: clamp(34px, 5vh, 44px);
+        font-size: clamp(0.65rem, 3.2vw, 0.8rem);
+        border-radius: 4px;
+      }
+      .key.wide-key {
+        font-size: clamp(0.55rem, 2.5vw, 0.7rem);
+      }
+      .key.layout-toggle-key {
+        font-size: 0.65rem;
+      }
+      .tile {
+        border-width: 1.5px;
+        border-radius: 6px;
+      }
+    }
+
+    @media (max-height: 720px) {
+      header {
+        padding: 6px 12px;
+      }
+      .brand h1 { font-size: 1.15rem; }
       .brand span { font-size: 0.55rem; }
-      main { padding: 4px; }
-      #keyboard-container { padding-bottom: 5px; gap: 4px; }
-      .key { height: clamp(36px, 5.5vh, 44px); }
-      .modal-content { padding: 20px 16px; gap: 14px; }
+      main { padding: 2px; }
+      #board-container { max-height: 40vh; }
+      #keyboard-container { padding-bottom: 6px; gap: 3px; }
+      .key { height: 36px; }
+      .modal-content { padding: 18px 14px; gap: 12px; }
+      .modal-title { font-size: 1.4rem; }
+      .tab-btn { padding: 6px 12px; font-size: 0.75rem; }
     }
   </style>
 </head>
@@ -956,6 +1008,17 @@
     /* ========================================================================= */
 
     window.addEventListener("DOMContentLoaded", () => {
+      // Dynamic mobile viewport height fix
+      const calculateVH = () => {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      calculateVH();
+      window.addEventListener('resize', calculateVH);
+      window.addEventListener('orientationchange', () => {
+        setTimeout(calculateVH, 100);
+      });
+
       // Setup Solo Word Length Buttons
       initSoloLengthSelector();
       
@@ -1216,24 +1279,29 @@
     }
 
     function adjustCellSizes() {
-      // The CSS is configured to dynamically scale cell sizes based on --word-length.
-      // But we can check window resizing dynamically to guarantee seamless display:
       const viewHeight = window.innerHeight;
       const viewWidth = window.innerWidth;
       
-      // Dynamically override variables if screen is extremely horizontal/small
-      let idealCellSize = 60; // default cap
-      
-      // Maximize room for taller words on low height devices
-      if (viewHeight < 680) {
+      // Base ideal sizing depending on screen vertical spaces
+      let idealCellSize = 55;
+      if (viewHeight < 600) {
+        idealCellSize = 36;
+      } else if (viewHeight < 720) {
         idealCellSize = 42;
-      } else if (viewHeight < 800) {
-        idealCellSize = 50;
+      } else if (viewHeight < 850) {
+        idealCellSize = 48;
       }
       
-      // Ensure fit inside width constraints
-      const maxWidthCell = (viewWidth - 30) / wordLength;
-      const finalCellSize = Math.floor(Math.min(idealCellSize, maxWidthCell, viewHeight * 0.07));
+      // Calculate limit based on maximum height container allocation (approx 40vh to 44vh)
+      // Wordle has 6 rows. The height is 6 * cell_size + 5 * gap.
+      // Let's reserve at most 40% of viewHeight for the grid itself.
+      const maxCellHeight = Math.floor((viewHeight * 0.40 - 25) / 6);
+      
+      // Width limit constraint based on viewport width (minus side padding gaps)
+      const maxCellWidth = Math.floor((viewWidth - 24) / wordLength);
+      
+      // Set the optimal cell size
+      const finalCellSize = Math.max(26, Math.min(idealCellSize, maxCellHeight, maxCellWidth));
       
       document.documentElement.style.setProperty("--cell-size", `${finalCellSize}px`);
     }
