@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WORDLE INFINITE - Custom Challenge & Solo Play</title>
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* CSS RESET & CUSTOM PROPERTIES */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --word-length: 5;
+      /* Dynamic sizing to strictly fit vertical screen height */
+      --cell-size: min(6vh, calc((90vw - 20px) / var(--word-length)));
+      --cell-gap: clamp(4px, 1vw, 8px);
+      
+      /* Vibrant Slate Dark Theme */
+      --bg-dark: #0a0e14;
+      --bg-light: #161f30;
+      --bg-gradient: radial-gradient(circle at center, #1b263b 0%, #0d131f 100%);
+      
+      --color-correct: #2ea44f;
+      --color-present: #dbab09;
+      --color-absent: #38444d;
+      --color-empty-border: #444c56;
+      --color-filled-border: #8b949e;
+      --color-active-border: #58a6ff;
+      --color-active-glow: rgba(88, 166, 255, 0.4);
+      
+      --color-text-main: #f0f6fc;
+      --color-text-muted: #8b949e;
+      
+      --glass-bg: rgba(22, 31, 48, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: var(--bg-dark);
+      background-image: var(--bg-gradient);
+      color: var(--color-text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* GLASS CARD MIXIN */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: 16px;
+    }
+
+    /* HEADER & BRANDING */
+    header {
+      width: 100%;
+      max-width: 600px;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(10, 14, 20, 0.5);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #f0f6fc 0%, #58a6ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand span {
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: -2px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-header {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--color-text-main);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-header:hover {
+      background: rgba(88, 166, 255, 0.15);
+      border-color: var(--color-active-border);
+      transform: translateY(-1px);
+    }
+
+    .challenge-tag {
+      background: rgba(219, 171, 9, 0.15);
+      border: 1px solid var(--color-present);
+      color: var(--color-present);
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 4px rgba(219, 171, 9, 0.1); }
+      50% { box-shadow: 0 0 12px rgba(219, 171, 9, 0.35); }
+    }
+
+    /* MAIN CONTENT WRAPPER */
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      position: relative;
+    }
+
+    /* GAME BOARD GRID */
+    #board-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0;
+      width: 100%;
+      max-height: 52vh;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      gap: var(--cell-gap);
+      width: max-content;
+      height: 100%;
+      max-height: 100%;
+    }
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: repeat(var(--word-length), 1fr);
+      gap: var(--cell-gap);
+    }
+
+    .tile {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      min-width: 32px;
+      min-height: 32px;
+      border: 2px solid var(--color-empty-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(var(--cell-size) * 0.45);
+      font-weight: 800;
+      text-transform: uppercase;
+      user-select: none;
+      background: rgba(10, 14, 20, 0.35);
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+      color: var(--color-text-main);
+      perspective: 1000px;
+      transform-style: preserve-3d;
+    }
+
+    .tile.filled {
+      border-color: var(--color-filled-border);
+      animation: popIn 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .tile.active-focus {
+      border-color: var(--color-active-border);
+      box-shadow: 0 0 10px var(--color-active-glow);
+    }
+
+    /* TILE STATE COLORS */
+    .tile.correct {
+      background-color: var(--color-correct) !important;
+      border-color: var(--color-correct) !important;
+    }
+
+    .tile.present {
+      background-color: var(--color-present) !important;
+      border-color: var(--color-present) !important;
+    }
+
+    .tile.absent {
+      background-color: var(--color-absent) !important;
+      border-color: var(--color-absent) !important;
+    }
+
+    /* ANIMATIONS */
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0.5; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .tile.flip {
+      animation: flipTile 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes flipTile {
+      0% {
+        transform: rotateX(0deg);
+        background: transparent;
+      }
+      45% {
+        transform: rotateX(90deg);
+        background: transparent;
+      }
+      55% {
+        transform: rotateX(90deg);
+      }
+      100% {
+        transform: rotateX(0deg);
+      }
+    }
+
+    .grid-row.shake {
+      animation: shakeRow 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    @keyframes shakeRow {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    /* VIRTUAL KEYBOARD */
+    #keyboard-container {
+      width: 100%;
+      max-width: 650px;
+      padding: 5px 8px 15px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    .keyboard-row {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      gap: clamp(3px, 1.2vw, 6px);
+    }
+
+    .key {
+      flex: 1;
+      height: clamp(42px, 6.5vh, 52px);
+      max-width: 48px;
+      background-color: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+      color: var(--color-text-main);
+      font-size: clamp(0.75rem, 2.5vw, 0.95rem);
+      font-weight: 600;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s, transform 0.1s;
+    }
+
+    .key:active {
+      transform: scale(0.92);
+      background-color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+    .key.wide-key {
+      flex: 1.6;
+      max-width: 75px;
+      font-size: clamp(0.65rem, 2.2vw, 0.75rem);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .key.layout-toggle-key {
+      background-color: rgba(88, 166, 255, 0.12);
+      border-color: rgba(88, 166, 255, 0.2);
+      color: var(--color-active-border);
+      flex: 1.2;
+      max-width: 55px;
+    }
+
+    .key.layout-toggle-key:hover {
+      background-color: rgba(88, 166, 255, 0.25);
+    }
+
+    /* Keyboard letter status updates */
+    .key.correct {
+      background-color: var(--color-correct) !important;
+      color: #fff;
+    }
+
+    .key.present {
+      background-color: var(--color-present) !important;
+      color: #fff;
+    }
+
+    .key.absent {
+      background-color: var(--color-absent) !important;
+      opacity: 0.45;
+    }
+
+    /* SETUP OVERLAY SCREEN */
+    .screen-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+      background: rgba(5, 8, 13, 0.85);
+      animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 460px;
+      padding: 30px 24px;
+      text-align: center;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px) scale(0.95); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+      background: linear-gradient(135deg, #f0f6fc 0%, #8b949e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .modal-subtitle {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+
+    /* GLASS TAB SWITCHER */
+    .tab-container {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin: 10px 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--color-active-border);
+      color: #0a0e14;
+      box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+    }
+
+    /* SOLO PANEL */
+    .panel {
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel.active {
+      display: flex;
+    }
+
+    .length-selector {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 5px 0;
+    }
+
+    .length-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--color-empty-border);
+      background: transparent;
+      color: var(--color-text-main);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .length-btn:hover {
+      border-color: var(--color-filled-border);
+      transform: scale(1.05);
+    }
+
+    .length-btn.active {
+      background: var(--color-text-main);
+      color: var(--bg-dark);
+      border-color: var(--color-text-main);
+      box-shadow: 0 0 10px rgba(240, 246, 2fc, 0.35);
+    }
+
+    /* CHALLENGE PANEL */
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .masked-input {
+      width: 100%;
+      padding: 14px 44px 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--color-empty-border);
+      background: rgba(10, 14, 20, 0.4);
+      color: var(--color-text-main);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .masked-input:focus {
+      border-color: var(--color-active-border);
+      box-shadow: 0 0 10px var(--color-active-glow);
+    }
+
+    .btn-toggle-visibility {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+    }
+
+    .btn-toggle-visibility:hover {
+      color: var(--color-text-main);
+    }
+
+    .word-preview-slots {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      height: 18px;
+      margin-top: -5px;
+    }
+
+    .preview-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-empty-border);
+      transition: all 0.15s;
+    }
+
+    .preview-dot.filled {
+      background: var(--color-active-border);
+      box-shadow: 0 0 6px var(--color-active-glow);
+      transform: scale(1.2);
+    }
+
+    /* MAIN ACTIONS BUTTONS */
+    .btn-primary {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #58a6ff 0%, #2188ff 100%);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 15px rgba(33, 136, 255, 0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(33, 136, 255, 0.5);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      background: var(--color-absent);
+      color: var(--color-text-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* SHARE RESULT CARD */
+    .share-card {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(88, 166, 255, 0.06);
+      border: 1px solid rgba(88, 166, 255, 0.15);
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .share-card.active {
+      display: flex;
+    }
+
+    .share-link-box {
+      font-size: 0.75rem;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--glass-border);
+      padding: 10px;
+      border-radius: 8px;
+      color: var(--color-active-border);
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      user-select: all;
+    }
+
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #2ea44f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(46, 164, 79, 0.3);
+    }
+
+    .btn-copy:hover {
+      background: #2c974b;
+      transform: translateY(-1px);
+    }
+
+    .btn-copy.copied {
+      background: #0969da;
+      box-shadow: 0 3px 10px rgba(9, 105, 218, 0.35);
+    }
+
+    .friend-message {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-correct);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      margin-top: 2px;
+    }
+
+    .friend-message.show {
+      opacity: 1;
+    }
+
+    /* GAME WIN/LOSS MODAL STATS */
+    .stat-val {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--color-active-border);
+    }
+    
+    .stats-row {
+      display: flex;
+      justify-content: space-around;
+      margin: 10px 0;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .word-reveal {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--color-correct);
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(46, 164, 79, 0.08);
+      border: 1px dashed rgba(46, 164, 79, 0.3);
+    }
+
+    .word-reveal.lose {
+      color: #ff7b72;
+      background: rgba(255, 123, 114, 0.08);
+      border-color: rgba(255, 123, 114, 0.3);
+    }
+
+    /* TOAST TOASTER */
+    #toast-container {
+      position: fixed;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #21262d;
+      border: 1px solid #30363d;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      color: var(--color-text-main);
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      animation: toastIn 0.25s cubic-bezier(0.215, 0.61, 0.355, 1), toastOut 0.25s 2.75s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+      pointer-events: auto;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes toastOut {
+      from { transform: translateY(0); opacity: 1; }
+      to { transform: translateY(-20px); opacity: 0; }
+    }
+
+    /* CELEBRATION CANVAS */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 90;
+    }
+
+    /* SVG ICONS */
+    .icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    /* MOBILE EXTRA OPTIMIZATION */
+    @media (max-height: 680px) {
+      header {
+        padding: 6px 15px;
+      }
+      .brand h1 { font-size: 1.25rem; }
+      .brand span { font-size: 0.55rem; }
+      main { padding: 4px; }
+      #keyboard-container { padding-bottom: 5px; gap: 4px; }
+      .key { height: clamp(36px, 5.5vh, 44px); }
+      .modal-content { padding: 20px 16px; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Confetti Elements -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Dynamic Toasts -->
+  <div id="toast-container"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <h1>Wordle Infinite</h1>
+      <span>Multi-length & Custom Challenge</span>
+    </div>
+    <div class="header-actions">
+      <div id="active-challenge-tag" class="challenge-tag" style="display: none;">Challenge</div>
+      <button class="btn-header" id="btn-header-new">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7.5 4v3.5H4v1h3.5V12h1V8.5H12v-1H8.5V4h-1z"/>
+        </svg>
+        New Game
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Game Workspace -->
+  <main>
+    <div id="board-container">
+      <div class="grid" id="game-grid"></div>
+    </div>
+
+    <!-- Virtual On-screen Keyboard -->
+    <div id="keyboard-container"></div>
+  </main>
+
+  <!-- Welcome / Setup Overlay (Solo or Challenge setup) -->
+  <div id="setup-overlay" class="screen-overlay" style="display: none;">
+    <div class="modal-content glass-card">
+      <div>
+        <h2 class="modal-title">Wordle Infinite</h2>
+        <p class="modal-subtitle">Play solo or challenge your friends with customized secret words!</p>
+      </div>
+
+      <!-- Pill Tab Selectors -->
+      <div class="tab-container">
+        <button class="tab-btn active" onclick="switchSetupTab('solo')">Play Solo</button>
+        <button class="tab-btn" onclick="switchSetupTab('challenge')">Create Challenge</button>
+      </div>
+
+      <!-- Play Solo Panel -->
+      <div id="solo-panel" class="panel active">
+        <p class="modal-subtitle">Choose a word length to play a random word:</p>
+        <div class="length-selector" id="length-selector-container">
+          <!-- Populated by JS -->
+        </div>
+        <button class="btn-primary" onclick="startSoloGame()">Start Solo Game</button>
+      </div>
+
+      <!-- Create Challenge Panel -->
+      <div id="challenge-panel" class="panel">
+        <p class="modal-subtitle">Enter a secret word (3 to 20 letters). Both Latin and Cyrillic (Russian) are supported!</p>
+        
+        <div class="input-wrapper">
+          <input type="password" id="custom-word-input" class="masked-input" placeholder="Secret Word" maxlength="20" autocomplete="off" oninput="onCustomWordInput()">
+          <button class="btn-toggle-visibility" onclick="togglePasswordVisibility()">
+            <svg id="visibility-icon" class="icon" viewBox="0 0 16 16" style="width: 20px; height: 20px;">
+              <!-- Eye Close Icon by default -->
+              <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a8.09 8.09 0 0 0-2.344.342L1.758.176a.5.5 0 0 0-.707.708l1.493 1.493A8.58 8.58 0 0 0 0 8s3 5.5 8 5.5a8.09 8.09 0 0 0 5.359-2.038l1.64 1.64a.5.5 0 0 0 .708-.707l-1.639-1.639zM8.5 4.5A3.5 3.5 0 0 1 12 8c0 .245-.027.48-.075.708L8.708 5.483A3.507 3.507 0 0 1 8.5 4.5zM2.846 4.347l1.57 1.57A3.653 3.653 0 0 0 4 8c0 2.21 1.79 4 4 4a3.653 3.653 0 0 0 2.083-.416l1.57 1.57A6.875 6.875 0 0 1 8 12.5c-4.42 0-7.5-4.5-7.5-4.5a6.837 6.837 0 0 1 2.346-3.653zm8.153 8.153A3.5 3.5 0 0 1 4.5 9l4.5 4.5zm-3-3A3.5 3.5 0 0 1 6 8.5l3 3z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="word-preview-slots" id="preview-slots-container">
+          <!-- Indicators shown dynamically -->
+        </div>
+
+        <button class="btn-primary" id="btn-generate-link" onclick="generateChallenge()" disabled>Generate Challenge Link</button>
+
+        <!-- Share Box -->
+        <div class="share-card" id="challenge-share-card">
+          <div class="share-link-box" id="challenge-link-box">https://wordle-infinite.com/?w=...</div>
+          <button class="btn-copy" id="btn-copy-link" onclick="copyChallengeLink()">
+            <svg class="icon" viewBox="0 0 16 16">
+              <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+              <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+            </svg>
+            Copy Link
+          </button>
+          <span class="friend-message" id="copy-success-message">Send this link to your friend!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Game Modal (Win/Loss Overlay) -->
+  <div id="game-over-overlay" class="screen-overlay" style="display: none;">
+    <div class="modal-content glass-card">
+      <div>
+        <h2 class="modal-title" id="game-over-title">Victory!</h2>
+        <p class="modal-subtitle" id="game-over-subtitle">Outstanding performance!</p>
+      </div>
+
+      <div id="reveal-word-box" style="display: none;">
+        <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--color-text-muted);">The secret word was:</span>
+        <div class="word-reveal" id="revealed-word">WORD</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-val" id="stat-played">0</span>
+          <span class="stat-label">Played</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val" id="stat-win-pct">0%</span>
+          <span class="stat-label">Win %</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val" id="stat-streak">0</span>
+          <span class="stat-label">Current Streak</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-primary" id="btn-over-primary" onclick="closeGameOverAndNew()">Play Again</button>
+        <button class="btn-header" style="justify-content: center; padding: 12px;" onclick="backToSetupScreen()">
+          Create Your Own Challenge
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ========================================================================= */
+    /* GAME CONFIGURATION & BUILT-IN DICTIONARY                                  */
+    /* ========================================================================= */
+    
+    // Built-in English target words for Solo Mode (lengths 3 to 8)
+    const SOLO_DICTIONARY = {
+      3: ["cat", "dog", "sun", "sky", "red", "run", "box", "fun", "ice", "fly", "map", "hot", "sea", "war", "art", "car", "key", "joy", "pen", "cup", "tea", "hat", "air", "fox", "gem", "web", "row", "win", "cap", "fix", "mix", "fit", "cry", "dry", "wet", "bus", "day", "law", "raw", "new"],
+      4: ["game", "code", "play", "word", "blue", "star", "glow", "dark", "fire", "wind", "rain", "snow", "gold", "tree", "leaf", "bird", "fish", "moon", "city", "road", "home", "hope", "love", "life", "time", "mind", "soul", "idea", "pure", "cool", "kind", "warm", "easy", "soft", "loud", "fast", "slow", "hero", "icon", "data"],
+      5: ["react", "smart", "apple", "dream", "cloud", "ocean", "space", "earth", "light", "heavy", "sound", "music", "dance", "laugh", "smile", "happy", "brave", "proud", "noble", "sharp", "sweet", "fresh", "green", "white", "black", "night", "beach", "world", "coder", "pixel", "graph", "chart", "table", "clock", "magic", "ghost", "party", "focus", "sharp", "great"],
+      6: ["coding", "system", "nature", "python", "stream", "forest", "planet", "galaxy", "cosmic", "energy", "future", "vision", "vector", "matrix", "linear", "solver", "engine", "source", "output", "button", "screen", "mobile", "device", "player", "winner", "golden", "silver", "bronze", "shadow", "winter", "summer", "autumn", "spring", "garden", "castle", "bridge", "flight", "travel", "beauty", "guitar"],
+      7: ["science", "quantum", "gravity", "mystery", "journey", "explore", "pioneer", "academy", "develop", "program", "console", "creator", "digital", "network", "startup", "dynamic", "organic", "element", "perfect", "awesome", "graphic", "desktop", "weather", "compass", "horizon", "sunrise", "sunset", "monster", "harvest", "history", "culture", "freedom", "justice", "victory", "triumph", "courage", "passion", "silence", "crystal", "diamond"],
+      8: ["database", "computer", "infinity", "universe", "engineer", "designer", "frontend", "backend", "software", "hardware", "keyboard", "absolute", "ultimate", "creative", "artistic", "championship", "original", "powerful", "flawless", "electric", "magnetic", "glorious", "friendly", "champion", "academic", "analysis", "parallel", "protocol", "security", "template", "terminal", "document", "function", "variable", "argument", "standard", "vertical", "diagonal", "mountain", "fountain"]
+    };
+
+    // Game variables
+    let targetWord = "";
+    let wordLength = 5;
+    const maxAttempts = 6;
+    let currentAttempt = 0;
+    let currentGuess = "";
+    let gameEnded = false;
+    let isChallengeMode = false;
+    let selectedSoloLength = 5;
+    
+    // Keyboard layouts
+    const LATIN_LAYOUT = [
+      ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+      ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+      ["enter", "z", "x", "c", "v", "b", "n", "m", "backspace"]
+    ];
+    
+    // Russian ЙЦУКЕН layout (without extra rare characters for compact mobile layout)
+    const CYRILLIC_LAYOUT = [
+      ["й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х", "ъ"],
+      ["ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э"],
+      ["enter", "я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "backspace"]
+    ];
+
+    let currentKeyboardLayout = "latin"; // "latin" or "cyrillic"
+    let keyStatusTracker = {}; // Tracks colored states for keyboards: {letter: 'correct'|'present'|'absent'}
+
+    /* ========================================================================= */
+    /* INITIALIZATION & ROUTING                                                 */
+    /* ========================================================================= */
+
+    window.addEventListener("DOMContentLoaded", () => {
+      // Setup Solo Word Length Buttons
+      initSoloLengthSelector();
+      
+      // Check query parameter ?w=
+      const urlParams = new URLSearchParams(window.location.search);
+      const encodedWord = urlParams.get("w");
+
+      if (encodedWord) {
+        try {
+          // Decode URL base64 word
+          const decoded = decodeUnicodeBase64(encodedWord).trim().toLowerCase();
+          
+          // Validation: 3 to 20 alphabetical chars
+          if (decoded.length >= 3 && decoded.length <= 20 && /^[a-zA-Zа-яА-ЯёЁ]+$/.test(decoded)) {
+            targetWord = decoded;
+            wordLength = decoded.length;
+            isChallengeMode = true;
+            
+            // Adjust keyboard layout automatically if cyrillic characters are in target word
+            if (/[а-яА-ЯёЁ]/.test(targetWord)) {
+              currentKeyboardLayout = "cyrillic";
+            } else {
+              currentKeyboardLayout = "latin";
+            }
+            
+            document.getElementById("active-challenge-tag").style.display = "block";
+            showToast(`Loaded ${wordLength}-letter challenge!`);
+            startGame();
+          } else {
+            showToast("Invalid challenge link! Loading setup.", 3500);
+            openSetupOverlay();
+          }
+        } catch (e) {
+          console.error("Decoding error:", e);
+          showToast("Failed to decode challenge word! Opening setup.", 3500);
+          openSetupOverlay();
+        }
+      } else {
+        openSetupOverlay();
+      }
+
+      // Add main trigger controls
+      document.getElementById("btn-header-new").addEventListener("click", () => {
+        backToSetupScreen();
+      });
+
+      // Hook up physical keyboard key listener
+      window.addEventListener("keydown", handlePhysicalKeyDown);
+    });
+
+    // Unicode Base64 support: btoa(unescape(encodeURIComponent(str)))
+    function encodeUnicodeBase64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    // Unicode Base64 support: decodeURIComponent(escape(atob(str)))
+    function decodeUnicodeBase64(str) {
+      return decodeURIComponent(escape(atob(str)));
+    }
+
+    /* ========================================================================= */
+    /* UI SCREENS CONTROLS & TABS                                                */
+    /* ========================================================================= */
+
+    function openSetupOverlay() {
+      document.getElementById("setup-overlay").style.display = "flex";
+      // Clear inputs
+      document.getElementById("custom-word-input").value = "";
+      document.getElementById("btn-generate-link").disabled = true;
+      document.getElementById("challenge-share-card").classList.remove("active");
+      document.getElementById("copy-success-message").classList.remove("show");
+      onCustomWordInput();
+    }
+
+    function closeSetupOverlay() {
+      document.getElementById("setup-overlay").style.display = "none";
+    }
+
+    function switchSetupTab(tabName) {
+      const tabs = document.querySelectorAll(".tab-btn");
+      const panels = document.querySelectorAll(".panel");
+      
+      tabs.forEach(tab => tab.classList.remove("active"));
+      panels.forEach(panel => panel.classList.remove("active"));
+      
+      if (tabName === "solo") {
+        tabs[0].classList.add("active");
+        document.getElementById("solo-panel").classList.add("active");
+      } else {
+        tabs[1].classList.add("active");
+        document.getElementById("challenge-panel").classList.add("active");
+      }
+    }
+
+    function initSoloLengthSelector() {
+      const container = document.getElementById("length-selector-container");
+      container.innerHTML = "";
+      for (let i = 3; i <= 8; i++) {
+        const btn = document.createElement("button");
+        btn.className = `length-btn ${i === selectedSoloLength ? 'active' : ''}`;
+        btn.textContent = i;
+        btn.onclick = () => selectSoloLength(i, btn);
+        container.appendChild(btn);
+      }
+    }
+
+    function selectSoloLength(len, clickedBtn) {
+      selectedSoloLength = len;
+      document.querySelectorAll(".length-btn").forEach(btn => btn.classList.remove("active"));
+      clickedBtn.classList.add("active");
+    }
+
+    /* Challenge Custom Word Logic */
+    function onCustomWordInput() {
+      const input = document.getElementById("custom-word-input");
+      let val = input.value.trim().toLowerCase();
+      
+      // Restrict characters: Latin and Cyrillic letters only
+      val = val.replace(/[^a-zа-яё]/gi, "");
+      input.value = val;
+
+      const len = val.length;
+      const previewContainer = document.getElementById("preview-slots-container");
+      previewContainer.innerHTML = "";
+
+      // Draw dot slots
+      for (let i = 0; i < 20; i++) {
+        const dot = document.createElement("div");
+        dot.className = `preview-dot ${i < len ? 'filled' : ''}`;
+        previewContainer.appendChild(dot);
+      }
+
+      const generateBtn = document.getElementById("btn-generate-link");
+      if (len >= 3 && len <= 20) {
+        generateBtn.disabled = false;
+      } else {
+        generateBtn.disabled = true;
+      }
+
+      // Hide active share card if they change word
+      document.getElementById("challenge-share-card").classList.remove("active");
+    }
+
+    let isPasswordMasked = true;
+    function togglePasswordVisibility() {
+      const input = document.getElementById("custom-word-input");
+      const icon = document.getElementById("visibility-icon");
+      isPasswordMasked = !isPasswordMasked;
+
+      if (isPasswordMasked) {
+        input.type = "password";
+        // Eye close icon
+        icon.innerHTML = `<path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a8.09 8.09 0 0 0-2.344.342L1.758.176a.5.5 0 0 0-.707.708l1.493 1.493A8.58 8.58 0 0 0 0 8s3 5.5 8 5.5a8.09 8.09 0 0 0 5.359-2.038l1.64 1.64a.5.5 0 0 0 .708-.707l-1.639-1.639zM8.5 4.5A3.5 3.5 0 0 1 12 8c0 .245-.027.48-.075.708L8.708 5.483A3.507 3.507 0 0 1 8.5 4.5zM2.846 4.347l1.57 1.57A3.653 3.653 0 0 0 4 8c0 2.21 1.79 4 4 4a3.653 3.653 0 0 0 2.083-.416l1.57 1.57A6.875 6.875 0 0 1 8 12.5c-4.42 0-7.5-4.5-7.5-4.5a6.837 6.837 0 0 1 2.346-3.653zm8.153 8.153A3.5 3.5 0 0 1 4.5 9l4.5 4.5zm-3-3A3.5 3.5 0 0 1 6 8.5l3 3z"/>`;
+      } else {
+        input.type = "text";
+        // Eye open icon
+        icon.innerHTML = `<path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>`;
+      }
+    }
+
+    /* ========================================================================= */
+    /* GAME PREPARATION & GRID GENERATION                                        */
+    /* ========================================================================= */
+
+    function startSoloGame() {
+      isChallengeMode = false;
+      document.getElementById("active-challenge-tag").style.display = "none";
+      
+      const words = SOLO_DICTIONARY[selectedSoloLength];
+      const randomIndex = Math.floor(Math.random() * words.length);
+      
+      targetWord = words[randomIndex].toLowerCase();
+      wordLength = targetWord.length;
+      
+      currentKeyboardLayout = "latin"; // Solo play defaults to English dictionary
+      
+      closeSetupOverlay();
+      startGame();
+    }
+
+    function generateChallenge() {
+      const customWord = document.getElementById("custom-word-input").value.trim().toLowerCase();
+      if (customWord.length < 3 || customWord.length > 20) return;
+
+      const encoded = encodeUnicodeBase64(customWord);
+      const challengeUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?w=${encoded}`;
+      
+      document.getElementById("challenge-link-box").textContent = challengeUrl;
+      document.getElementById("challenge-share-card").classList.add("active");
+      showToast("Link created successfully!");
+    }
+
+    function copyChallengeLink() {
+      const linkBox = document.getElementById("challenge-link-box");
+      const textToCopy = linkBox.textContent;
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const btn = document.getElementById("btn-copy-link");
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        
+        const successMsg = document.getElementById("copy-success-message");
+        successMsg.classList.add("show");
+        
+        showToast("Challenge link copied to clipboard!");
+        
+        // Return button back to standard copy in 3s
+        setTimeout(() => {
+          btn.innerHTML = `<svg class="icon" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg> Copy Link`;
+          btn.classList.remove("copied");
+        }, 3000);
+
+        // After a small delay, start the challenge locally too!
+        setTimeout(() => {
+          targetWord = document.getElementById("custom-word-input").value.trim().toLowerCase();
+          wordLength = targetWord.length;
+          isChallengeMode = true;
+          
+          if (/[а-яА-ЯёЁ]/.test(targetWord)) {
+            currentKeyboardLayout = "cyrillic";
+          } else {
+            currentKeyboardLayout = "latin";
+          }
+          
+          document.getElementById("active-challenge-tag").style.display = "block";
+          
+          // Clean the address bar gracefully without reloading page
+          const cleanUrl = `${window.location.pathname}?w=${encodeUnicodeBase64(targetWord)}`;
+          window.history.pushState({path: cleanUrl}, '', cleanUrl);
+          
+          closeSetupOverlay();
+          startGame();
+        }, 1500);
+
+      }).catch(err => {
+        console.error("Clipboard copy failed: ", err);
+        showToast("Press and hold the link address to copy!");
+      });
+    }
+
+    function startGame() {
+      // Set board size CSS variable dynamically
+      document.documentElement.style.setProperty("--word-length", wordLength);
+      
+      // Calculate responsive tile size to completely prevent vertical scrolling
+      adjustCellSizes();
+
+      currentAttempt = 0;
+      currentGuess = "";
+      gameEnded = false;
+      keyStatusTracker = {};
+
+      // Clear layout and build grid
+      buildGrid();
+      
+      // Build Virtual Keyboard
+      buildKeyboard();
+    }
+
+    function adjustCellSizes() {
+      // The CSS is configured to dynamically scale cell sizes based on --word-length.
+      // But we can check window resizing dynamically to guarantee seamless display:
+      const viewHeight = window.innerHeight;
+      const viewWidth = window.innerWidth;
+      
+      // Dynamically override variables if screen is extremely horizontal/small
+      let idealCellSize = 60; // default cap
+      
+      // Maximize room for taller words on low height devices
+      if (viewHeight < 680) {
+        idealCellSize = 42;
+      } else if (viewHeight < 800) {
+        idealCellSize = 50;
+      }
+      
+      // Ensure fit inside width constraints
+      const maxWidthCell = (viewWidth - 30) / wordLength;
+      const finalCellSize = Math.floor(Math.min(idealCellSize, maxWidthCell, viewHeight * 0.07));
+      
+      document.documentElement.style.setProperty("--cell-size", `${finalCellSize}px`);
+    }
+
+    window.addEventListener("resize", adjustCellSizes);
+
+    function buildGrid() {
+      const grid = document.getElementById("game-grid");
+      grid.innerHTML = "";
+      
+      for (let r = 0; r < maxAttempts; r++) {
+        const row = document.createElement("div");
+        row.className = "grid-row";
+        row.id = `row-${r}`;
+        
+        for (let c = 0; c < wordLength; c++) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        grid.appendChild(row);
+      }
+    }
+
+    /* ========================================================================= */
+    /* VIRTUAL KEYBOARD LAYOUT BUILDER                                           */
+    /* ========================================================================= */
+
+    function buildKeyboard() {
+      const container = document.getElementById("keyboard-container");
+      container.innerHTML = "";
+
+      const layout = currentKeyboardLayout === "latin" ? LATIN_LAYOUT : CYRILLIC_LAYOUT;
+
+      layout.forEach((rowKeys, rowIndex) => {
+        const row = document.createElement("div");
+        row.className = "keyboard-row";
+
+        // Prepend custom Language Toggle key on the 3rd row for extreme usability
+        if (rowIndex === 2) {
+          const langToggle = document.createElement("button");
+          langToggle.className = "key layout-toggle-key";
+          langToggle.textContent = currentKeyboardLayout === "latin" ? "РУС" : "ENG";
+          langToggle.onclick = () => {
+            currentKeyboardLayout = currentKeyboardLayout === "latin" ? "cyrillic" : "latin";
+            buildKeyboard();
+          };
+          row.appendChild(langToggle);
+        }
+
+        rowKeys.forEach(keyVal => {
+          const keyButton = document.createElement("button");
+          keyButton.className = "key";
+          
+          if (keyVal === "enter") {
+            keyButton.classList.add("wide-key");
+            keyButton.textContent = "ENTER";
+          } else if (keyVal === "backspace") {
+            keyButton.classList.add("wide-key");
+            keyButton.innerHTML = `<svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z"/></svg>`;
+          } else {
+            keyButton.textContent = keyVal;
+            keyButton.id = `key-${keyVal}`;
+            
+            // Reapply existing letter state coloring if any
+            if (keyStatusTracker[keyVal]) {
+              keyButton.classList.add(keyStatusTracker[keyVal]);
+            }
+          }
+
+          keyButton.addEventListener("click", () => handleVirtualKeyPress(keyVal));
+          row.appendChild(keyButton);
+        });
+
+        container.appendChild(row);
+      });
+    }
+
+    /* ========================================================================= */
+    /* KEYBOARD INPUT INTERFACES (PHYSICAL & VIRTUAL)                            */
+    /* ========================================================================= */
+
+    function handleVirtualKeyPress(key) {
+      if (gameEnded) return;
+
+      if (key === "enter") {
+        submitGuess();
+      } else if (key === "backspace") {
+        removeLetter();
+      } else {
+        addLetter(key);
+      }
+    }
+
+    function handlePhysicalKeyDown(e) {
+      if (gameEnded) return;
+
+      // Disable physical keyboard actions if active overlays are visible
+      if (document.getElementById("setup-overlay").style.display === "flex") return;
+      if (document.getElementById("game-over-overlay").style.display === "flex") return;
+
+      const key = e.key.toLowerCase();
+
+      if (key === "enter") {
+        submitGuess();
+      } else if (key === "backspace") {
+        removeLetter();
+      } else if (/^[a-zа-яё]$/i.test(key)) {
+        // Automatically switch on-screen keyboard language based on typed key to avoid visual desync
+        if (/[а-яё]/i.test(key) && currentKeyboardLayout === "latin") {
+          currentKeyboardLayout = "cyrillic";
+          buildKeyboard();
+        } else if (/[a-z]/i.test(key) && currentKeyboardLayout === "cyrillic") {
+          currentKeyboardLayout = "latin";
+          buildKeyboard();
+        }
+        addLetter(key);
+      }
+    }
+
+    /* ========================================================================= */
+    /* GAMEPLAY ENGINE ACTIONS                                                   */
+    /* ========================================================================= */
+
+    function addLetter(letter) {
+      if (currentGuess.length >= wordLength) return;
+      
+      const currentCellIndex = currentGuess.length;
+      currentGuess += letter;
+
+      // Update grid UI
+      const tile = document.getElementById(`tile-${currentAttempt}-${currentCellIndex}`);
+      tile.textContent = letter;
+      tile.classList.add("filled");
+      
+      // Subtle focus indicator border highlight
+      tile.classList.add("active-focus");
+      if (currentCellIndex > 0) {
+        document.getElementById(`tile-${currentAttempt}-${currentCellIndex - 1}`).classList.remove("active-focus");
+      }
+    }
+
+    function removeLetter() {
+      if (currentGuess.length === 0) return;
+
+      const lastIndex = currentGuess.length - 1;
+      const tile = document.getElementById(`tile-${currentAttempt}-${lastIndex}`);
+      
+      tile.textContent = "";
+      tile.classList.remove("filled", "active-focus");
+      
+      currentGuess = currentGuess.slice(0, -1);
+      
+      // Update glow highlight on new active end tile
+      if (currentGuess.length > 0) {
+        document.getElementById(`tile-${currentAttempt}-${currentGuess.length - 1}`).classList.add("active-focus");
+      }
+    }
+
+    function submitGuess() {
+      // Validate guess matches correct size
+      if (currentGuess.length !== wordLength) {
+        showToast(`Need ${wordLength} letters!`);
+        shakeActiveRow();
+        return;
+      }
+
+      // Check for dictionary validation (solo only, challenge allows custom letter patterns)
+      if (!isChallengeMode && SOLO_DICTIONARY[wordLength]) {
+        // Optional dictionary check - let's keep solo play completely standard, but let user guess anything, 
+        // avoiding strict blockage in case of slang. High accessibility.
+      }
+
+      evaluateActiveRow();
+    }
+
+    function shakeActiveRow() {
+      const activeRow = document.getElementById(`row-${currentAttempt}`);
+      activeRow.classList.add("shake");
+      setTimeout(() => {
+        activeRow.classList.remove("shake");
+      }, 500);
+    }
+
+    /* Core evaluation logic */
+    function evaluateActiveRow() {
+      const guess = currentGuess.split("");
+      const target = targetWord.split("");
+      const rowNum = currentAttempt;
+      
+      // 1. Initialise score metrics
+      const letterMatches = new Array(wordLength).fill("absent");
+      
+      // Track letters available to handle duplicates correctly (like normal Wordle)
+      const targetLettersRemaining = {};
+      target.forEach(char => {
+        targetLettersRemaining[char] = (targetLettersRemaining[char] || 0) + 1;
+      });
+
+      // Pass 1: Tag Exact Matches (Correct / Green)
+      for (let i = 0; i < wordLength; i++) {
+        if (guess[i] === target[i]) {
+          letterMatches[i] = "correct";
+          targetLettersRemaining[guess[i]]--;
+        }
+      }
+
+      // Pass 2: Tag Wrong Positions (Present / Yellow)
+      for (let i = 0; i < wordLength; i++) {
+        if (letterMatches[i] !== "correct" && target.includes(guess[i])) {
+          if (targetLettersRemaining[guess[i]] > 0) {
+            letterMatches[i] = "present";
+            targetLettersRemaining[guess[i]]--;
+          }
+        }
+      }
+
+      // Lock input to prevent physical clicking glitches while tiles flip
+      gameEnded = true;
+
+      // Sequential elegant tile flip animations
+      for (let i = 0; i < wordLength; i++) {
+        const tile = document.getElementById(`tile-${rowNum}-${i}`);
+        tile.classList.remove("active-focus");
+        
+        setTimeout(() => {
+          tile.classList.add("flip");
+          
+          // Swap style when half rotated (at 0.27s)
+          setTimeout(() => {
+            tile.classList.add(letterMatches[i]);
+            
+            // Record state for keyboard keys
+            updateKeyboardKeyColor(guess[i], letterMatches[i]);
+          }, 270);
+          
+        }, i * 150); // Sequential flip delay
+      }
+
+      // Wait for all tiles of active row to complete flips before executing state progressions
+      const totalAnimationDuration = (wordLength * 150) + 550;
+      setTimeout(() => {
+        // Release block
+        gameEnded = false;
+        
+        // Evaluate overall outcome
+        const win = letterMatches.every(status => status === "correct");
+        
+        if (win) {
+          gameEnded = true;
+          saveStats(true);
+          setTimeout(() => {
+            triggerConfetti();
+            openGameOverModal(true);
+          }, 600);
+        } else {
+          currentAttempt++;
+          currentGuess = "";
+          
+          if (currentAttempt >= maxAttempts) {
+            gameEnded = true;
+            saveStats(false);
+            setTimeout(() => {
+              openGameOverModal(false);
+            }, 600);
+          }
+        }
+      }, totalAnimationDuration);
+    }
+
+    function updateKeyboardKeyColor(letter, status) {
+      const currentStatus = keyStatusTracker[letter];
+      
+      // Update hierarchy: correct overrides present, present overrides absent
+      if (!currentStatus) {
+        keyStatusTracker[letter] = status;
+      } else if (currentStatus === "present" && status === "correct") {
+        keyStatusTracker[letter] = status;
+      } else if (currentStatus === "absent" && (status === "present" || status === "correct")) {
+        keyStatusTracker[letter] = status;
+      }
+
+      // Update color on active UI layout if letter is present in it
+      const keyBtn = document.getElementById(`key-${letter}`);
+      if (keyBtn) {
+        // Clear old state class labels
+        keyBtn.classList.remove("correct", "present", "absent");
+        keyBtn.classList.add(keyStatusTracker[letter]);
+      }
+    }
+
+    /* ========================================================================= */
+    /* GAME OVER STATS MODAL & LOCAL STORAGE                                     */
+    /* ========================================================================= */
+
+    function openGameOverModal(won) {
+      document.getElementById("game-over-overlay").style.display = "flex";
+      
+      const title = document.getElementById("game-over-title");
+      const subtitle = document.getElementById("game-over-subtitle");
+      const revealBox = document.getElementById("reveal-word-box");
+      const revealTxt = document.getElementById("revealed-word");
+
+      if (won) {
+        title.textContent = "Victory!";
+        title.style.background = "linear-gradient(135deg, #2ea44f 0%, #a3f7bf 100%)";
+        title.style.webkitBackgroundClip = "text";
+        title.style.webkitTextFillColor = "transparent";
+        subtitle.textContent = `You cracked the secret word in ${currentAttempt + 1} / 6 tries!`;
+        revealBox.style.display = "none";
+      } else {
+        title.textContent = "Defeat!";
+        title.style.background = "linear-gradient(135deg, #ff7b72 0%, #ffc0c0 100%)";
+        title.style.webkitBackgroundClip = "text";
+        title.style.webkitTextFillColor = "transparent";
+        subtitle.textContent = "Better luck next time! Practice makes perfect.";
+        revealTxt.textContent = targetWord;
+        revealTxt.className = "word-reveal lose";
+        revealBox.style.display = "block";
+      }
+
+      // Load Statistics
+      const stats = getStats();
+      document.getElementById("stat-played").textContent = stats.played;
+      
+      const winPct = stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0;
+      document.getElementById("stat-win-pct").textContent = `${winPct}%`;
+      
+      document.getElementById("stat-streak").textContent = stats.streak;
+
+      // Adjust primary action button text
+      const mainBtn = document.getElementById("btn-over-primary");
+      if (isChallengeMode) {
+        mainBtn.textContent = "Create New Challenge";
+        mainBtn.onclick = () => {
+          closeGameOverModal();
+          openSetupOverlay();
+          switchSetupTab("challenge");
+        };
+      } else {
+        mainBtn.textContent = "Play Again (Solo)";
+        mainBtn.onclick = () => {
+          closeGameOverModal();
+          startSoloGame();
+        };
+      }
+    }
+
+    function closeGameOverModal() {
+      document.getElementById("game-over-overlay").style.display = "none";
+    }
+
+    function closeGameOverAndNew() {
+      closeGameOverModal();
+      openSetupOverlay();
+    }
+
+    function backToSetupScreen() {
+      closeGameOverModal();
+      openSetupOverlay();
+      
+      // Clean query parameter when making new setup to avoid loading same word
+      window.history.pushState({path: window.location.pathname}, '', window.location.pathname);
+    }
+
+    // LocalStorage Statistics Wrapper
+    function getStats() {
+      let stats = localStorage.getItem("wordle_infinite_stats");
+      if (!stats) {
+        stats = { played: 0, wins: 0, streak: 0 };
+      } else {
+        stats = JSON.parse(stats);
+      }
+      return stats;
+    }
+
+    function saveStats(won) {
+      const stats = getStats();
+      stats.played += 1;
+      if (won) {
+        stats.wins += 1;
+        stats.streak += 1;
+      } else {
+        stats.streak = 0;
+      }
+      localStorage.setItem("wordle_infinite_stats", JSON.stringify(stats));
+    }
+
+    /* ========================================================================= */
+    /* DYNAMIC TOAST TOASTER POPUPS                                              */
+    /* ========================================================================= */
+
+    function showToast(message, duration = 2500) {
+      const container = document.getElementById("toast-container");
+      
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = message;
+      
+      container.appendChild(toast);
+      
+      // Remove element from DOM after toast exit animation completes (3s total)
+      setTimeout(() => {
+        toast.remove();
+      }, duration + 500);
+    }
+
+    /* ========================================================================= */
+    /* PREMIUM HTML5 CANVAS CONFETTI CELEBRATION EFFECT                          */
+    /* ========================================================================= */
+
+    let confettiActive = false;
+    let particles = [];
+    const confettiColors = ["#2ea44f", "#58a6ff", "#dbab09", "#ff7b72", "#a371f7", "#538d4e"];
+
+    function triggerConfetti() {
+      const canvas = document.getElementById("confetti-canvas");
+      const ctx = canvas.getContext("2d");
+      
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      confettiActive = true;
+      particles = [];
+
+      // Generate a pool of 120 colorful falling particles
+      for (let i = 0; i < 120; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * -canvas.height - 20,
+          size: Math.random() * 8 + 6,
+          color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+          speedX: Math.random() * 4 - 2,
+          speedY: Math.random() * 4 + 4,
+          rotation: Math.random() * 360,
+          rotationSpeed: Math.random() * 4 - 2,
+          shape: Math.random() > 0.5 ? "rect" : "circle"
+        });
+      }
+
+      function updateConfetti() {
+        if (!confettiActive) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let liveParticles = 0;
+
+        particles.forEach(p => {
+          p.x += p.speedX;
+          p.y += p.speedY;
+          p.rotation += p.rotationSpeed;
+
+          // Keep within x borders
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+
+          if (p.y < canvas.height) {
+            liveParticles++;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+
+            if (p.shape === "rect") {
+              ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.5);
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        });
+
+        if (liveParticles > 0) {
+          requestAnimationFrame(updateConfetti);
+        } else {
+          confettiActive = false;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+
+      updateConfetti();
+
+      // Automatically terminate confetti engine after 6s
+      setTimeout(() => {
+        confettiActive = false;
+      }, 6000);
+    }
+  </script>
+</body>
+</html>
