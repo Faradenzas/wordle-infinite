@@ -828,70 +828,6 @@
       .modal-title { font-size: 1.4rem; }
       .tab-btn { padding: 6px 12px; font-size: 0.75rem; }
     }
-
-    /* Mobile-first Used Letters stats bar */
-    #used-letters-bar {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding: 6px 10px;
-      width: 100%;
-      max-width: 600px;
-      justify-content: center;
-      align-items: center;
-      min-height: 42px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      margin-top: 4px;
-      -webkit-overflow-scrolling: touch;
-    }
-    
-    .letter-chip {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      flex-shrink: 0;
-    }
-    
-    .letter-chip.correct { background-color: var(--color-correct); border-color: var(--color-correct); }
-    .letter-chip.present { background-color: var(--color-present); border-color: var(--color-present); }
-    .letter-chip.absent { background-color: var(--color-absent); border-color: var(--color-absent); opacity: 0.55; }
-    
-    /* Active blinking cursor on empty slots */
-    .tile.active-focus {
-      position: relative;
-    }
-    
-    .tile.active-focus:empty::after {
-      content: '';
-      width: 3px;
-      height: 55%;
-      background-color: var(--color-active-border);
-      position: absolute;
-      animation: cursorBlink 1s step-end infinite;
-    }
-    
-    @keyframes cursorBlink {
-      from, to { opacity: 0; }
-      50% { opacity: 1; }
-    }
-    
-    /* Native mobile keyboard active styles */
-    body.native-keyboard-focused #keyboard-container {
-      display: none !important;
-    }
-    
-    body.native-keyboard-focused #floating-submit-bar {
-      display: flex !important;
-    }
   </style>
 </head>
 <body>
@@ -910,9 +846,6 @@
     </div>
     <div class="header-actions">
       <div id="active-challenge-tag" class="challenge-tag" style="display: none;">Challenge</div>
-      <button class="btn-header" id="btn-toggle-input" onclick="focusMobileInput();" title="Открыть клавиатуру телефона">
-        ⌨️ Ввод с телефона
-      </button>
       <button class="btn-header" id="btn-header-new">
         <svg class="icon" viewBox="0 0 16 16">
           <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM7.5 4v3.5H4v1h3.5V12h1V8.5H12v-1H8.5V4h-1z"/>
@@ -922,25 +855,10 @@
     </div>
   </header>
 
-  <!-- Hidden input form for native mobile keyboards -->
-  <form id="hidden-input-form" onsubmit="event.preventDefault(); submitGuess();" style="position: absolute; width: 0; height: 0; opacity: 0; overflow: hidden; z-index: -100;">
-    <input type="text" id="mobile-hidden-input" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-  </form>
-
   <!-- Main Game Workspace -->
   <main>
     <div id="board-container">
       <div class="grid" id="game-grid"></div>
-    </div>
-
-    <!-- Floating/Inline Used Letters Stats Bar & Action Bar for Mobile Keyboard -->
-    <div id="used-letters-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10;">
-      <div id="used-letters-bar"></div>
-    </div>
-    
-    <div id="floating-submit-bar" style="display: none; width: 100%; max-width: 600px; padding: 4px 8px 10px 8px; justify-content: space-between; gap: 10px; z-index: 20;">
-      <button class="btn-copy" style="flex: 1; background: #38444d; padding: 10px 14px; font-size: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);" onclick="removeLetter();">⌫ Стереть</button>
-      <button class="btn-primary" style="flex: 2; padding: 10px 14px; font-size: 0.85rem; border-radius: 12px; box-shadow: none;" onclick="submitGuess();">✓ Проверить</button>
     </div>
 
     <!-- Virtual On-screen Keyboard -->
@@ -1099,74 +1017,6 @@
       window.addEventListener('resize', calculateVH);
       window.addEventListener('orientationchange', () => {
         setTimeout(calculateVH, 100);
-      });
-
-      // Listen to the hidden text input
-      const hiddenInput = document.getElementById("mobile-hidden-input");
-      
-      hiddenInput.addEventListener("input", () => {
-        if (gameEnded) return;
-        
-        let val = hiddenInput.value.toLowerCase();
-        // Keep only supported alphabet characters (Cyrillic + English)
-        val = val.replace(/[^a-zа-яё]/gi, "");
-        
-        if (val.length > wordLength) {
-          val = val.slice(0, wordLength);
-        }
-        hiddenInput.value = val;
-        currentGuess = val;
-        
-        // Sync to grid cells
-        const rowNum = currentAttempt;
-        for (let c = 0; c < wordLength; c++) {
-          const tile = document.getElementById(`tile-${rowNum}-${c}`);
-          if (tile) {
-            if (c < val.length) {
-              tile.textContent = val[c];
-              tile.classList.add("filled");
-              tile.classList.remove("active-focus");
-            } else {
-              tile.textContent = "";
-              tile.classList.remove("filled", "active-focus");
-            }
-          }
-        }
-        
-        // Handle cursor blinking on active empty slot or last character
-        if (val.length < wordLength) {
-          const nextSlotIndex = val.length;
-          const activeTile = document.getElementById(`tile-${rowNum}-${nextSlotIndex}`);
-          if (activeTile) {
-            activeTile.classList.add("active-focus");
-          }
-        } else {
-          // Last character is focused if full
-          const lastTile = document.getElementById(`tile-${rowNum}-${wordLength - 1}`);
-          if (lastTile) {
-            lastTile.classList.add("active-focus");
-          }
-        }
-      });
-      
-      hiddenInput.addEventListener("focus", () => {
-        document.body.classList.add("native-keyboard-focused");
-        adjustCellSizes();
-      });
-      
-      hiddenInput.addEventListener("blur", () => {
-        // Delay a tiny bit so that clicking "Submit" or "Backspace" buttons doesn't trigger layout shifting instantly
-        setTimeout(() => {
-          if (document.activeElement !== hiddenInput) {
-            document.body.classList.remove("native-keyboard-focused");
-            adjustCellSizes();
-          }
-        }, 120);
-      });
-      
-      // Tap on grid focuses input
-      document.getElementById("board-container").addEventListener("click", () => {
-        focusMobileInput();
       });
 
       // Setup Solo Word Length Buttons
@@ -1409,41 +1259,6 @@
       });
     }
 
-    function updateUsedLettersBar() {
-      const bar = document.getElementById("used-letters-bar");
-      if (!bar) return;
-      bar.innerHTML = "";
-      
-      const letters = Object.keys(keyStatusTracker);
-      if (letters.length === 0) {
-        bar.innerHTML = `<span style="color: var(--color-text-muted); font-size: 0.75rem; letter-spacing: 0.05em;">Использованные буквы будут здесь</span>`;
-        return;
-      }
-      
-      // Sort: correct (green) first, then present (yellow), then absent (gray)
-      const sortedLetters = [...letters].sort((a, b) => {
-        const score = { correct: 3, present: 2, absent: 1 };
-        return score[keyStatusTracker[b]] - score[keyStatusTracker[a]];
-      });
-      
-      sortedLetters.forEach(lettr => {
-        const chip = document.createElement("div");
-        chip.className = `letter-chip ${keyStatusTracker[lettr]}`;
-        chip.textContent = lettr.toUpperCase();
-        bar.appendChild(chip);
-      });
-    }
-
-    function focusMobileInput() {
-      if (gameEnded) return;
-      const input = document.getElementById("mobile-hidden-input");
-      if (!input) return;
-      input.focus();
-      // Move cursor to the end
-      const len = input.value.length;
-      input.setSelectionRange(len, len);
-    }
-
     function startGame() {
       // Set board size CSS variable dynamically
       document.documentElement.style.setProperty("--word-length", wordLength);
@@ -1456,30 +1271,11 @@
       gameEnded = false;
       keyStatusTracker = {};
 
-      // Reset hidden input
-      const hiddenInput = document.getElementById("mobile-hidden-input");
-      if (hiddenInput) {
-        hiddenInput.value = "";
-        document.body.classList.remove("native-keyboard-focused");
-      }
-
       // Clear layout and build grid
       buildGrid();
       
-      // Set blinking cursor on the first tile
-      const firstTile = document.getElementById("tile-0-0");
-      if (firstTile) firstTile.classList.add("active-focus");
-      
-      // Clear compact panel
-      updateUsedLettersBar();
-
       // Build Virtual Keyboard
       buildKeyboard();
-      
-      // Auto focus input on small mobile viewports for smooth experience
-      if (window.innerWidth < 768) {
-        setTimeout(focusMobileInput, 300);
-      }
     }
 
     function adjustCellSizes() {
@@ -1632,19 +1428,38 @@
     /* ========================================================================= */
 
     function addLetter(letter) {
-      if (gameEnded) return;
-      const hiddenInput = document.getElementById("mobile-hidden-input");
-      if (hiddenInput.value.length >= wordLength) return;
-      hiddenInput.value += letter;
-      hiddenInput.dispatchEvent(new Event("input"));
+      if (currentGuess.length >= wordLength) return;
+      
+      const currentCellIndex = currentGuess.length;
+      currentGuess += letter;
+
+      // Update grid UI
+      const tile = document.getElementById(`tile-${currentAttempt}-${currentCellIndex}`);
+      tile.textContent = letter;
+      tile.classList.add("filled");
+      
+      // Subtle focus indicator border highlight
+      tile.classList.add("active-focus");
+      if (currentCellIndex > 0) {
+        document.getElementById(`tile-${currentAttempt}-${currentCellIndex - 1}`).classList.remove("active-focus");
+      }
     }
 
     function removeLetter() {
-      if (gameEnded) return;
-      const hiddenInput = document.getElementById("mobile-hidden-input");
-      if (hiddenInput.value.length === 0) return;
-      hiddenInput.value = hiddenInput.value.slice(0, -1);
-      hiddenInput.dispatchEvent(new Event("input"));
+      if (currentGuess.length === 0) return;
+
+      const lastIndex = currentGuess.length - 1;
+      const tile = document.getElementById(`tile-${currentAttempt}-${lastIndex}`);
+      
+      tile.textContent = "";
+      tile.classList.remove("filled", "active-focus");
+      
+      currentGuess = currentGuess.slice(0, -1);
+      
+      // Update glow highlight on new active end tile
+      if (currentGuess.length > 0) {
+        document.getElementById(`tile-${currentAttempt}-${currentGuess.length - 1}`).classList.add("active-focus");
+      }
     }
 
     function submitGuess() {
@@ -1747,32 +1562,12 @@
           currentAttempt++;
           currentGuess = "";
           
-          const hiddenInput = document.getElementById("mobile-hidden-input");
-          if (hiddenInput) {
-            hiddenInput.value = "";
-          }
-          
-          // Clear active-focus from all tiles of previous row
-          for (let c = 0; c < wordLength; c++) {
-            const prevTile = document.getElementById(`tile-${currentAttempt-1}-${c}`);
-            if (prevTile) prevTile.classList.remove("active-focus");
-          }
-
           if (currentAttempt >= maxAttempts) {
             gameEnded = true;
             saveStats(false);
             setTimeout(() => {
               openGameOverModal(false);
             }, 600);
-          } else {
-            // Highlight the first slot of the next row
-            const nextFirstTile = document.getElementById(`tile-${currentAttempt}-0`);
-            if (nextFirstTile) nextFirstTile.classList.add("active-focus");
-            
-            // Keep key focus active if in mobile native mode
-            if (document.body.classList.contains("native-keyboard-focused")) {
-              setTimeout(focusMobileInput, 50);
-            }
           }
         }
       }, totalAnimationDuration);
@@ -1797,9 +1592,6 @@
         keyBtn.classList.remove("correct", "present", "absent");
         keyBtn.classList.add(keyStatusTracker[letter]);
       }
-
-      // Sync compact Used Letters Bar
-      updateUsedLettersBar();
     }
 
     /* ========================================================================= */
