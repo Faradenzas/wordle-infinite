@@ -180,13 +180,16 @@
       padding: 10px 0;
       width: 100%;
       max-height: 46vh;
+      overflow-x: auto; /* enable horizontal scroll */
+      -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
     }
 
     .grid {
       display: grid;
       grid-template-rows: repeat(6, 1fr);
       gap: var(--cell-gap);
-      width: max-content;
+      width: max-content; /* expand to fit all columns */
+      min-width: 100%; /* ensure at least full width */
       height: 100%;
       max-height: 100%;
     }
@@ -792,6 +795,8 @@
       #board-container {
         padding: 4px 0;
         max-height: 42vh;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       #keyboard-container {
         padding: 2px 4px 10px 4px;
